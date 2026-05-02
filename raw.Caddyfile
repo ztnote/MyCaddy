@@ -1,0 +1,168 @@
+# 注意：
+# 示例文件中以 @example.com 作为邮箱
+# 示例文件中以 example.com 作为演示域名
+# 请进行替换
+
+# 注意：
+# 示例文件中明文标注用户密码
+# 请进行替换
+
+# caddy 全局配置
+{
+    # 启用 caddy metrics
+    metrics
+
+    # tls 设定
+    # 如果此处有该配置则站点不需要该配置
+    acme_dns tencentcloud {
+    secret_id {$TENCENTCLOUD_SECRET_ID}
+    secret_key {$TENCENTCLOUD_SECRET_KEY}
+    }
+
+    # caddy-security 设置
+
+	# 认证
+	order authenticate before respond
+    
+    # 授权
+	order authorize before basicauth
+
+    # 配置
+	security {
+		
+        # 本地认证配置
+        local identity store localdb {
+			
+            # 作用域与存储
+            realm local
+			path /caddy_security/users.json
+
+            # 管理员
+			user admin {
+				name admin
+				email admin@example.com
+				password "admin123456"
+				roles authp/admin authp/user
+			}
+			
+            # 用户
+			user demo {
+				name demo
+				email demo@example.com
+				password "demo123456"
+				roles authp/user
+			}
+		}
+
+        # 认证设置
+		authentication portal myportal {
+			
+            # JWT 设置
+            # 有效期 5 小时
+            crypto default token lifetime 18000
+			
+            # 加密设定
+            crypto key {$JWT_KID} sign-verify {$JWT_SHARED_KEY}
+			
+            # 启用本地存储
+            enable identity store localdb
+			
+            # cookie 范围
+            cookie domain example.com
+			
+            # 认证网站UI
+            ui {
+
+                # 显示的链接
+				links {
+					"snippets" https://snippets.example.com icon "las la-binoculars"
+                    "metrics" https://metrics.example.com icon "las la-binoculars"
+                    "reverse" https://reverse.example.com icon "las la-binoculars"
+                    "static" https://static.example.com icon "las la-binoculars"
+                    "test" https://test.example.com icon "las la-binoculars"
+                    "whoami" https://whoami.example.com icon "las la-binoculars"
+                    "whoami security" /whoami icon "las la-binoculars"
+                }
+
+                # 语言设定
+                language zh
+			}
+
+            # 用户转换
+			transform user {
+				suffix match email @example.com
+				add role authp/user
+			}
+		}
+		
+        # 授权策略 管理员策略
+		authorization policy adminspolicy {
+			set auth url https://auth.example.com
+			allow roles authp/admin 
+			crypto key {$JWT_KID} verify {$JWT_SHARED_KEY}
+		}
+
+        # 授权策略 用户策略
+        authorization policy userspolicy {
+			set auth url https://auth.example.com
+			allow roles authp/admin authp/user
+			crypto key {$JWT_KID} verify {$JWT_SHARED_KEY}
+        }
+	}
+}
+
+# 脚本 胡乱写的简单测试
+(snippets_test) {
+	respond "This is a snippets arg test: {args[0]}"
+}
+
+# 脚本 用于简化证书获取配置
+# 如果全局配置中已经进行设定
+# 则该脚本不再需要
+(tls_tencent) {
+    tls {
+        dns tencentcloud {
+            secret_id {$TENCENTCLOUD_SECRET_ID}
+            secret_key {$TENCENTCLOUD_SECRET_KEY}
+        }
+    }
+}
+
+# 非 docker 网站
+
+# 脚本测试
+snippets.example.com {
+	import snippets_test "this is the arg."
+}
+
+# 认证网站
+auth.example.com {
+	authenticate with myportal
+}
+
+# caddy metric 接口
+metrics.example.com {
+	authorize with adminspolicy
+	metrics
+}
+
+# 反向代理
+reverse.example.com {
+	authorize with adminspolicy
+	reverse_proxy https://test.example.com
+}
+
+# 静态页面
+static.example.com {
+	authorize with adminspolicy
+	root * /caddy_site/example
+	file_server
+}
+
+# 无认证测试页面
+test.example.com {
+    respond / "Hello World" 200
+}
+
+# 后续内容将会由 caddy-docker-proxy 自动生成
+# 例如 compose.yml 中的 whoami

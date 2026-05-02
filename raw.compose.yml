@@ -1,0 +1,49 @@
+# 请替换 example.com:2026 为实际地址
+# 该文件启动两个服务：caddy 和 whoami
+
+services:
+  # caddy 服务
+  caddy:
+    image: ztnote/mycaddy:latest
+    container_name: caddy
+    # 按需要修改端口
+    ports:
+      - 80:80
+      - 443:443
+    environment:
+      - CADDY_INGRESS_NETWORKS=caddy
+      - CADDY_DOCKER_CADDYFILE_PATH=/config/Caddyfile
+      - JWT_KID=id1234567890 # string length 12
+      - JWT_SHARED_KEY=5524deb7-4a77-4226-ba3b-9df49473e070 # UUID v4
+      - TENCENTCLOUD_SECRET_ID=secret_id # replace
+      - TENCENTCLOUD_SECRET_KEY=secret_key # replace
+    networks:
+      - caddy
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./caddy_data:/data
+      - ./caddy_security:/caddy_security
+      - ./caddy_site:/caddy_site
+      - ./Caddyfile:/config/Caddyfile
+    restart: unless-stopped
+
+  # 演示配置
+  whoami:
+    image: traefik/whoami
+    container_name: whoami
+    # 以上为一般的容器配置
+    # 以下为Caddy反向代理的配置
+    networks:
+      - caddy
+    labels:
+      caddy: whoami.example.com # 域名
+      caddy.authorize: with adminspolicy # 授权策略
+      caddy.reverse_proxy: "{{upstreams 80}}" # 代理端口
+      # caddy.import: tls_tencent # 如果不进行全局配置则需要在此处导入
+
+# 该部分始终需要
+networks:
+  caddy:
+    external: true
+
+
