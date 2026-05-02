@@ -1,0 +1,5 @@
+.env
+Caddyfile
+compose.yml
+/caddy_security
+/caddy_data
