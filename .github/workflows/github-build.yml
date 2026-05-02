@@ -1,9 +1,9 @@
-name: ci
+name: build and push image
 
 on:
   push:
-    branches:
-      - "main"
+    # branches:
+      # - "main"
     tags:
       - "v*"
   pull_request:
